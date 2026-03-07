@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kenlifts</string>
+    <string name="app_widget_label">Kenlifts Widget</string>
+    <string name="qs_tile_label">Kenlifts</string>
+    <string name="qs_tile_rest_timer">Rest Timer</string>
+    <string name="notification_channel_timer_name">Timer</string>
+    <string name="notification_channel_timer_description">Timer notifications</string>
+    <string name="notification_channel_rest_timer_name">Rest Timer</string>
+    <string name="notification_channel_rest_timer_description">Rest timer countdown and chimes</string>
+    <string name="rest_timer_notification_title">Rest Timer</string>
+    <string name="rest_timer_reset">Reset</string>
+    <string name="rest_timer_stop">Stop</string>
+    <string name="widget_start_routine_a">Start Routine A</string>
+    <string name="widget_start_routine_b">Start Routine B</string>
+    <string name="widget_reset_timer">Reset Timer</string>
+    <string name="progression_fail_count">Fail: %d/3</string>
+    <string name="progression_next_weight">Next: %1$.1f kg</string>
+    <string name="progression_deload_warning">Deload to %1$.1f kg if you fail</string>
+</resources>
