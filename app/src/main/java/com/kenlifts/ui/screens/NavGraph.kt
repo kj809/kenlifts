@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,8 +21,20 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kenlifts.AppContainer
 import com.kenlifts.PendingNavigation
+import com.kenlifts.viewmodel.EditRoutinesViewModel
+import com.kenlifts.viewmodel.EditRoutinesViewModelFactory
+import com.kenlifts.viewmodel.HistoryViewModel
+import com.kenlifts.viewmodel.HistoryViewModelFactory
 import com.kenlifts.viewmodel.ProgressChartsViewModel
 import com.kenlifts.viewmodel.ProgressChartsViewModelFactory
+import com.kenlifts.viewmodel.RoutineViewModel
+import com.kenlifts.viewmodel.RoutineViewModelFactory
+import com.kenlifts.viewmodel.SettingsViewModel
+import com.kenlifts.viewmodel.SettingsViewModelFactory
+import com.kenlifts.viewmodel.WorkoutDetailViewModel
+import com.kenlifts.viewmodel.WorkoutDetailViewModelFactory
+import com.kenlifts.viewmodel.WorkoutSessionViewModel
+import com.kenlifts.viewmodel.WorkoutSessionViewModelFactory
 import com.kenlifts.ui.navigation.NavRoutes
 
 @OptIn(ExperimentalMaterial3Api::class)

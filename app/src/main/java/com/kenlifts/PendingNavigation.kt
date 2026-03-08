@@ -5,16 +5,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 object PendingNavigation {
-    var routineId: Long? by mutableStateOf(null)
-        private set
+    private var routineIdState by mutableStateOf<Long?>(null)
+
+    val routineId: Long?
+        get() = routineIdState
 
     fun setRoutineId(id: Long?) {
-        routineId = id
+        routineIdState = id
     }
 
     fun consumeRoutineId(): Long? {
-        val id = routineId
-        routineId = null
+        val id = routineIdState
+        routineIdState = null
         return id
     }
 }

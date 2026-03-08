@@ -89,7 +89,6 @@ class EditRoutinesViewModel(
     }
 
     fun isDeadlift(exerciseId: Long): Boolean = exerciseNames[exerciseId] == "Deadlift"
-        || exerciseRepository.getExerciseById(exerciseId)?.name == "Deadlift"
 
     fun updateSets(re: RoutineExerciseEntity, sets: Int) {
         if (isDeadlift(re.exerciseId)) return

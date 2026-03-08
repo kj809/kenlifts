@@ -142,14 +142,14 @@ class WorkoutSessionViewModel(
                         weightKg = exercise.weightKg
                     )
                 )
+                val newCompleted = s.completedSets[exerciseId].orEmpty() + setIndex
                 _state.update {
-                    val current = it.completedSets[exerciseId].orEmpty() + setIndex
                     it.copy(
-                        completedSets = it.completedSets + (exerciseId to current)
+                        completedSets = it.completedSets + (exerciseId to newCompleted)
                     )
                 }
                 TimerManager.start(getApplication(), exercise.restSeconds)
-                if (current.size == exercise.sets) {
+                if (newCompleted.size == exercise.sets) {
                     advanceToNextExercise()
                 }
             }
