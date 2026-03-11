@@ -18,12 +18,17 @@ enum class ChartRange(val months: Int?) {
     ALL(null)
 }
 
+data class ExerciseChartData(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val data: List<WorkoutWeightPoint>
+)
+
 data class ProgressChartsState(
     val exercises: List<com.kenlifts.data.room.ExerciseEntity> = emptyList(),
-    val selectedExerciseId: Long? = null,
-    val selectedExerciseName: String = "",
+    val selectedExerciseIds: Set<Long> = emptySet(),
     val range: ChartRange = ChartRange.ALL,
-    val chartData: List<WorkoutWeightPoint> = emptyList()
+    val chartDataByExercise: List<ExerciseChartData> = emptyList()
 )
 
 class ProgressChartsViewModel(
@@ -42,21 +47,22 @@ class ProgressChartsViewModel(
         viewModelScope.launch {
             val exercises = exerciseRepository.getAllExercisesSync()
             _state.update { it.copy(exercises = exercises) }
-            val currentId = _state.value.selectedExerciseId
-            if (currentId == null && exercises.isNotEmpty()) {
-                selectExercise(exercises.first().id)
+            val current = _state.value.selectedExerciseIds
+            if (current.isEmpty() && exercises.isNotEmpty()) {
+                toggleExerciseSelection(exercises.first().id)
             }
         }
     }
 
-    fun selectExercise(exerciseId: Long) {
+    fun toggleExerciseSelection(exerciseId: Long) {
         viewModelScope.launch {
-            val exercise = exerciseRepository.getExerciseById(exerciseId)
             _state.update {
-                it.copy(
-                    selectedExerciseId = exerciseId,
-                    selectedExerciseName = exercise?.name ?: "?"
-                )
+                val next = if (exerciseId in it.selectedExerciseIds) {
+                    it.selectedExerciseIds - exerciseId
+                } else {
+                    it.selectedExerciseIds + exerciseId
+                }
+                it.copy(selectedExerciseIds = next)
             }
             loadChartData()
         }
@@ -69,14 +75,20 @@ class ProgressChartsViewModel(
 
     private fun loadChartData() {
         viewModelScope.launch {
-            val exerciseId = _state.value.selectedExerciseId ?: return@launch
-            var data = workoutSetRepository.getWeightTimeSeriesByExercise(exerciseId)
-            val range = _state.value.range
-            if (range.months != null) {
-                val cutoff = System.currentTimeMillis() - (range.months * 30L * 24 * 60 * 60 * 1000)
-                data = data.filter { it.startedAt >= cutoff }
+            val ids = _state.value.selectedExerciseIds
+            if (ids.isEmpty()) {
+                _state.update { it.copy(chartDataByExercise = emptyList()) }
+                return@launch
             }
-            _state.update { it.copy(chartData = data) }
+            val range = _state.value.range
+            val cutoff = range.months?.let { System.currentTimeMillis() - (it * 30L * 24 * 60 * 60 * 1000) }
+            val chartDataByExercise = ids.mapNotNull { exerciseId ->
+                val exercise = exerciseRepository.getExerciseById(exerciseId) ?: return@mapNotNull null
+                var data = workoutSetRepository.getWeightTimeSeriesByExercise(exerciseId)
+                if (cutoff != null) data = data.filter { it.startedAt >= cutoff }
+                ExerciseChartData(exerciseId, exercise.name, data)
+            }
+            _state.update { it.copy(chartDataByExercise = chartDataByExercise) }
         }
     }
 }

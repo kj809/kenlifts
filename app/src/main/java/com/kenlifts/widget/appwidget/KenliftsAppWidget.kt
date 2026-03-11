@@ -46,15 +46,15 @@ class KenliftsAppWidget : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.app_widget)
 
         val timerState = TimerManager.state.value
-        val timerActive = timerState.active && timerState.remainingSeconds > 0
+        val timerActive = timerState.active && timerState.totalSeconds > 0
 
         views.setViewVisibility(
             R.id.widget_timer_section,
             if (timerActive) View.VISIBLE else View.GONE
         )
         if (timerActive) {
-            val minutes = timerState.remainingSeconds / 60
-            val seconds = timerState.remainingSeconds % 60
+            val minutes = timerState.elapsedSeconds / 60
+            val seconds = timerState.elapsedSeconds % 60
             views.setTextViewText(
                 R.id.widget_timer_text,
                 context.getString(R.string.rest_timer_notification_title) + ": " + "%d:%02d".format(minutes, seconds)

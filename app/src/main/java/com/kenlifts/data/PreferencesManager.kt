@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -31,6 +32,7 @@ class PreferencesManager(private val context: Context) {
     private object Keys {
         val lastSyncTime = longPreferencesKey("last_sync_time")
         val chimeMode = stringPreferencesKey("chime_mode")
+        val bodyWeightKg = floatPreferencesKey("body_weight_kg")
     }
 
     val lastSyncTime: Flow<Long> = context.dataStore.data.map { prefs ->
@@ -39,6 +41,10 @@ class PreferencesManager(private val context: Context) {
 
     val chimeMode: Flow<ChimeMode> = context.dataStore.data.map { prefs ->
         ChimeMode.from(prefs[Keys.chimeMode])
+    }
+
+    val bodyWeightKg: Flow<Float?> = context.dataStore.data.map { prefs ->
+        prefs[Keys.bodyWeightKg]
     }
 
     suspend fun setLastSyncTime(time: Long) {
@@ -50,6 +56,12 @@ class PreferencesManager(private val context: Context) {
     suspend fun setChimeMode(mode: ChimeMode) {
         context.dataStore.edit { prefs ->
             prefs[Keys.chimeMode] = mode.value
+        }
+    }
+
+    suspend fun setBodyWeightKg(weight: Float?) {
+        context.dataStore.edit { prefs ->
+            if (weight != null) prefs[Keys.bodyWeightKg] = weight else prefs.remove(Keys.bodyWeightKg)
         }
     }
 }

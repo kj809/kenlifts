@@ -1,7 +1,13 @@
 package com.kenlifts.ui.screens
 
 import android.graphics.Color
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +22,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.kenlifts.data.room.ExerciseEntity
 import com.kenlifts.data.room.WorkoutWeightPoint
 import com.kenlifts.viewmodel.ChartRange
+import com.kenlifts.viewmodel.ExerciseChartData
 import com.kenlifts.viewmodel.ProgressChartsViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,7 +34,6 @@ fun ProgressChartsScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
-    var expanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -41,15 +47,15 @@ fun ProgressChartsScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            ExerciseDropdown(
+            Text(
+                text = "Select exercises",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            ExerciseFilterChips(
                 exercises = state.exercises,
-                selectedExercise = state.exercises.find { it.id == state.selectedExerciseId },
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-                onExerciseSelect = {
-                    viewModel.selectExercise(it.id)
-                    expanded = false
-                }
+                selectedIds = state.selectedExerciseIds,
+                onToggle = { viewModel.toggleExerciseSelection(it) }
             )
             Spacer(Modifier.height(16.dp))
             RangeFilterChips(
@@ -58,7 +64,7 @@ fun ProgressChartsScreen(
             )
             Spacer(Modifier.height(16.dp))
             ProgressLineChart(
-                data = state.chartData,
+                chartDataByExercise = state.chartDataByExercise,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp)
@@ -67,38 +73,25 @@ fun ProgressChartsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExerciseDropdown(
+private fun ExerciseFilterChips(
     exercises: List<ExerciseEntity>,
-    selectedExercise: ExerciseEntity?,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onExerciseSelect: (ExerciseEntity) -> Unit
+    selectedIds: Set<Long>,
+    onToggle: (Long) -> Unit
 ) {
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange
-    ) {
-        OutlinedTextField(
-            value = selectedExercise?.name ?: "Select exercise",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Exercise") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
-        ) {
-            exercises.forEach { exercise ->
-                DropdownMenuItem(
-                    text = { Text(exercise.name) },
-                    onClick = { onExerciseSelect(exercise) }
-                )
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        exercises.chunked(3).forEach { rowExercises ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowExercises.forEach { exercise ->
+                    FilterChip(
+                        selected = exercise.id in selectedIds,
+                        onClick = { onToggle(exercise.id) },
+                        label = { Text(exercise.name) }
+                    )
+                }
             }
         }
     }
@@ -129,12 +122,25 @@ private fun RangeFilterChips(
     }
 }
 
+private val CHART_COLORS = listOf(
+    "#6750A4", "#E53935", "#43A047", "#1E88E5", "#FB8C00"
+)
+
 @Composable
 private fun ProgressLineChart(
-    data: List<WorkoutWeightPoint>,
+    chartDataByExercise: List<ExerciseChartData>,
     modifier: Modifier = Modifier
 ) {
     val dateFormat = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
+    val allDates = remember(chartDataByExercise) {
+        chartDataByExercise
+            .flatMap { it.data.map { p -> p.startedAt } }
+            .distinct()
+            .sorted()
+    }
+    val dateToIndex = remember(allDates) {
+        allDates.mapIndexed { i, d -> d to i }.toMap()
+    }
 
     AndroidView(
         factory = { context ->
@@ -147,33 +153,40 @@ private fun ProgressLineChart(
             }
         },
         update = { chart ->
-            val entries = data
-                .mapIndexed { index, point ->
-                    point.maxWeightKg?.let { weight ->
-                        Entry(index.toFloat(), weight)
-                    }
-                }
-                .filterNotNull()
-            if (entries.isEmpty()) {
+            if (chartDataByExercise.isEmpty() || allDates.isEmpty()) {
                 chart.clear()
                 chart.invalidate()
                 return@AndroidView
             }
-            val dataSet = LineDataSet(entries, "Weight (kg)").apply {
-                color = Color.parseColor("#6750A4")
-                setCircleColor(Color.parseColor("#6750A4"))
-                lineWidth = 2f
-                setDrawValues(true)
-                mode = LineDataSet.Mode.LINEAR
+            val lineData = LineData()
+            chartDataByExercise.forEachIndexed { idx, exerciseData ->
+                val color = Color.parseColor(CHART_COLORS[idx % CHART_COLORS.size])
+                val entries = exerciseData.data
+                    .mapNotNull { point ->
+                        dateToIndex[point.startedAt]?.let { xIdx ->
+                            point.maxWeightKg?.let { weight -> Entry(xIdx.toFloat(), weight) }
+                        }
+                    }
+                if (entries.isNotEmpty()) {
+                    val dataSet = LineDataSet(entries, exerciseData.exerciseName).apply {
+                        setColor(color)
+                        setCircleColor(color)
+                        lineWidth = 2f
+                        setDrawValues(true)
+                        mode = LineDataSet.Mode.LINEAR
+                    }
+                    lineData.addDataSet(dataSet)
+                }
             }
-            chart.data = LineData(dataSet)
+            chart.data = lineData
             chart.xAxis.valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    val idx = value.toInt().coerceIn(0, data.lastIndex)
-                    return dateFormat.format(Date(data[idx].startedAt))
+                    val idx = value.toInt().coerceIn(0, allDates.lastIndex)
+                    return dateFormat.format(Date(allDates[idx]))
                 }
             }
             chart.xAxis.granularity = 1f
+            chart.legend.isEnabled = true
             chart.invalidate()
         },
         modifier = modifier

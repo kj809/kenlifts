@@ -15,9 +15,21 @@ class SettingsViewModel(private val preferencesManager: PreferencesManager) : Vi
         initialValue = ChimeMode.BOTH
     )
 
+    val bodyWeightKg = preferencesManager.bodyWeightKg.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
     fun setChimeMode(mode: ChimeMode) {
         viewModelScope.launch {
             preferencesManager.setChimeMode(mode)
+        }
+    }
+
+    fun setBodyWeightKg(weight: Float?) {
+        viewModelScope.launch {
+            preferencesManager.setBodyWeightKg(weight)
         }
     }
 }

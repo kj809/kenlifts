@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 data class RestTimerState(
     val active: Boolean = false,
     val remainingSeconds: Int = 0,
-    val totalSeconds: Int = 0
+    val totalSeconds: Int = 0,
+    val elapsedSeconds: Int = 0
 )
 
 object TimerManager {
@@ -42,11 +43,12 @@ object TimerManager {
         )
     }
 
-    fun updateState(active: Boolean, remainingSeconds: Int, totalSeconds: Int) {
+    fun updateState(active: Boolean, remainingSeconds: Int, totalSeconds: Int, elapsedSeconds: Int = totalSeconds - remainingSeconds) {
         _state.value = RestTimerState(
             active = active,
             remainingSeconds = remainingSeconds,
-            totalSeconds = totalSeconds
+            totalSeconds = totalSeconds,
+            elapsedSeconds = elapsedSeconds
         )
     }
 }

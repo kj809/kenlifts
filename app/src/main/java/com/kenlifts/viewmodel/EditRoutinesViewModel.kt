@@ -91,7 +91,6 @@ class EditRoutinesViewModel(
     fun isDeadlift(exerciseId: Long): Boolean = exerciseNames[exerciseId] == "Deadlift"
 
     fun updateSets(re: RoutineExerciseEntity, sets: Int) {
-        if (isDeadlift(re.exerciseId)) return
         viewModelScope.launch {
             routineExerciseRepository.updateRoutineExercise(re.copy(sets = sets))
             loadRoutineExercises(re.routineId)

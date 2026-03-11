@@ -95,8 +95,7 @@ fun EditRoutinesScreen(
                         RoutineExerciseRow(
                             routineExercise = re,
                             exerciseName = viewModel.getExerciseName(re.exerciseId),
-                            isDeadlift = viewModel.isDeadlift(re.exerciseId),
-                            onSetsChange = { if (!viewModel.isDeadlift(re.exerciseId)) viewModel.updateSets(re, it) },
+                            onSetsChange = { viewModel.updateSets(re, it) },
                             onRepsChange = { viewModel.updateReps(re, it) },
                             onRestChange = { viewModel.updateRest(re, it) },
                             onDelete = { viewModel.deleteRoutineExercise(re) }
@@ -138,7 +137,6 @@ fun EditRoutinesScreen(
 private fun RoutineExerciseRow(
     routineExercise: RoutineExerciseEntity,
     exerciseName: String,
-    isDeadlift: Boolean,
     onSetsChange: (Int) -> Unit,
     onRepsChange: (Int) -> Unit,
     onRestChange: (Int) -> Unit,
@@ -173,11 +171,7 @@ private fun RoutineExerciseRow(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!isDeadlift) {
-                        NumberField("Sets", sets, { sets = it; onSetsChange(it) })
-                    } else {
-                        Text("1×", style = MaterialTheme.typography.bodyMedium)
-                    }
+                    NumberField("Sets", sets, { sets = it; onSetsChange(it) })
                     NumberField("Reps", reps, { reps = it; onRepsChange(it) })
                     NumberField("Rest(s)", rest, { rest = it; onRestChange(it) })
                 }
@@ -190,6 +184,7 @@ private fun RoutineExerciseRow(
 }
 
 @Composable
+@Composable
 private fun NumberField(
     label: String,
     value: Int,
@@ -198,8 +193,8 @@ private fun NumberField(
     OutlinedTextField(
         value = value.toString(),
         onValueChange = { it.toIntOrNull()?.takeIf { n -> n in 1..999 }?.let { n -> onValueChange(n) } },
-        label = { Text(label) },
-        modifier = Modifier.width(70.dp),
+        label = { Text(label, maxLines = 1, softWrap = false) },
+        modifier = Modifier.widthIn(min = 72.dp),
         singleLine = true
     )
 }

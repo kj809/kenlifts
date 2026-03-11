@@ -103,10 +103,9 @@ private fun ExerciseDetailCard(exerciseDetail: ExerciseSetDetail) {
             ) {
                 (0 until exerciseDetail.expectedSets).forEach { setIndex ->
                     val completedSet = exerciseDetail.completedSets[setIndex]
-                    val completed = completedSet != null
                     SetCircle(
-                        reps = completedSet?.repsCompleted ?: exerciseDetail.expectedReps,
-                        completed = completed,
+                        targetReps = exerciseDetail.expectedReps,
+                        loggedReps = completedSet?.repsCompleted,
                         onClick = null,
                         weightKg = completedSet?.weightKg
                     )

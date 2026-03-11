@@ -28,7 +28,7 @@ class KenliftsTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val state = runBlocking { TimerManager.state.value }
-        if (state.active && state.remainingSeconds > 0) {
+        if (state.active && state.totalSeconds > 0) {
             TimerManager.reset(this)
         } else {
             TimerManager.start(this, DEFAULT_REST_SECONDS)
@@ -38,13 +38,13 @@ class KenliftsTileService : TileService() {
 
     private fun refreshTile() {
         val state = runBlocking { TimerManager.state.value }
-        val active = state.active && state.remainingSeconds > 0
+        val active = state.active && state.totalSeconds > 0
         qsTile?.apply {
             label = getString(R.string.qs_tile_rest_timer)
             icon = Icon.createWithResource(this@KenliftsTileService, android.R.drawable.ic_media_play)
             this.state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                subtitle = if (active) formatTime(state.remainingSeconds) else null
+                subtitle = if (active) formatTime(state.elapsedSeconds) else null
             }
             updateTile()
         }

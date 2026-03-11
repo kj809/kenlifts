@@ -1,6 +1,8 @@
 package com.kenlifts.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,39 +55,37 @@ fun WorkoutSessionScreen(
                 CircularProgressIndicator()
             }
         } else {
-            val currentExercise = state.exercises.getOrNull(state.currentExerciseIndex)
-            if (currentExercise == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Workout complete!")
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(24.dp)
-                ) {
-                    if (timerState.active && timerState.remainingSeconds > 0) {
-                        RestTimerBar(
-                            secondsRemaining = timerState.remainingSeconds,
-                            onReset = { viewModel.resetRestTimer() },
-                            onStop = { viewModel.stopRestTimer() }
-                        )
-                        Spacer(Modifier.height(24.dp))
-                    }
-                    ExerciseBlock(
-                        exercise = currentExercise,
-                        onSetClick = { setIndex ->
-                            viewModel.toggleSetCompleted(currentExercise.exerciseId, setIndex)
-                        },
-                        onWeightChange = { viewModel.updateWeight(currentExercise.exerciseId, it) },
-                        isSetCompleted = { viewModel.isSetCompleted(currentExercise.exerciseId, it) }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                if (timerState.active && timerState.totalSeconds > 0) {
+                    RestTimerBar(
+                        elapsedSeconds = timerState.elapsedSeconds,
+                        totalSeconds = timerState.totalSeconds,
+                        onReset = { viewModel.resetRestTimer() },
+                        onStop = { viewModel.stopRestTimer() }
                     )
+                    Spacer(Modifier.height(12.dp))
+                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.exercises, key = { it.exerciseId }) { exercise ->
+                        val isCurrent = exercise == state.exercises.getOrNull(state.currentExerciseIndex)
+                        CompactExerciseBlock(
+                            exercise = exercise,
+                            isCurrent = isCurrent,
+                            onSetClick = { setIndex ->
+                                viewModel.cycleSetReps(exercise.exerciseId, setIndex)
+                            },
+                            onWeightChange = { viewModel.updateWeight(exercise.exerciseId, it) },
+                            getSetReps = { viewModel.getSetReps(exercise.exerciseId, it) }
+                        )
+                    }
                 }
             }
         }
@@ -94,52 +94,72 @@ fun WorkoutSessionScreen(
 
 @Composable
 private fun RestTimerBar(
-    secondsRemaining: Int,
+    elapsedSeconds: Int,
+    totalSeconds: Int,
     onReset: () -> Unit = {},
     onStop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val minutes = secondsRemaining / 60
-    val secs = secondsRemaining % 60
+    val minutes = elapsedSeconds / 60
+    val secs = elapsedSeconds % 60
+    val progress = if (totalSeconds > 0) elapsedSeconds.toFloat() / totalSeconds else 0f
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Rest: %d:%02d".format(minutes, secs),
-                style = MaterialTheme.typography.titleLarge
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onReset) { Text("Reset") }
-                TextButton(onClick = onStop) { Text("Stop") }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "%d:%02d".format(minutes, secs),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Rest %dmin".format(totalSeconds / 60),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onReset) { Text("Reset") }
+                    TextButton(onClick = onStop) { Text("Stop") }
+                }
             }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun ExerciseBlock(
+private fun CompactExerciseBlock(
     exercise: WorkoutExerciseItem,
+    isCurrent: Boolean,
     onSetClick: (Int) -> Unit,
     onWeightChange: (Float?) -> Unit,
-    isSetCompleted: (Int) -> Boolean
+    getSetReps: (Int) -> Int?
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isCurrent) MaterialTheme.colorScheme.surfaceVariant
+            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
         )
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -147,49 +167,48 @@ private fun ExerciseBlock(
             ) {
                 Text(
                     text = exercise.exerciseName,
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleMedium
                 )
                 if (exercise.consecutiveFailures > 0) {
                     Text(
                         text = "Fail: ${exercise.consecutiveFailures}/3",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             }
             if (exercise.nextWeightPreview != null) {
-                Spacer(Modifier.height(4.dp))
                 Text(
                     text = exercise.nextWeightPreview,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 (0 until exercise.sets).forEach { setIndex ->
                     SetCircle(
-                        reps = exercise.reps,
-                        completed = isSetCompleted(setIndex),
+                        targetReps = exercise.reps,
+                        loggedReps = getSetReps(setIndex),
                         onClick = { onSetClick(setIndex) }
                     )
                 }
+                Spacer(Modifier.weight(1f))
+                CompactWeightEditor(
+                    currentWeight = exercise.weightKg,
+                    onWeightChange = onWeightChange
+                )
             }
-            Spacer(Modifier.height(16.dp))
-            WeightEditor(
-                currentWeight = exercise.weightKg,
-                onWeightChange = onWeightChange
-            )
         }
     }
 }
 
 @Composable
-private fun WeightEditor(
+private fun CompactWeightEditor(
     currentWeight: Float?,
     onWeightChange: (Float?) -> Unit
 ) {
@@ -198,20 +217,16 @@ private fun WeightEditor(
     }
     var isEditing by remember { mutableStateOf(false) }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = "Weight (kg):",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        if (isEditing) {
+    if (isEditing) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
                 singleLine = true,
-                modifier = Modifier.width(80.dp),
+                modifier = Modifier.width(60.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
             )
             TextButton(onClick = {
@@ -219,23 +234,19 @@ private fun WeightEditor(
                 onWeightChange(parsed)
                 isEditing = false
                 text = parsed?.toString() ?: ""
-            }) {
-                Text("Save")
-            }
+            }) { Text("✓") }
             TextButton(onClick = {
                 isEditing = false
                 text = currentWeight?.toString() ?: ""
-            }) {
-                Text("Cancel")
-            }
-        } else {
+            }) { Text("✕") }
+        }
+    } else {
+        TextButton(onClick = { isEditing = true }) {
             Text(
-                text = currentWeight?.let { "%.1f".format(it) } ?: "—",
-                style = MaterialTheme.typography.bodyLarge
+                text = currentWeight?.let { "%.1f kg".format(it) } ?: "— kg",
+                style = MaterialTheme.typography.bodySmall
             )
-            TextButton(onClick = { isEditing = true }) {
-                Text("Edit")
-            }
         }
     }
 }
+

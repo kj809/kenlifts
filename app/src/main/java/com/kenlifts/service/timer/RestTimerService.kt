@@ -35,7 +35,7 @@ class RestTimerService : Service() {
     private var countdownJob: Job? = null
 
     private var totalSeconds: Int = 0
-    private var remainingSeconds: Int = 0
+    private var elapsedSeconds: Int = 0
     private val firedMilestones = mutableSetOf<Int>()
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -44,14 +44,14 @@ class RestTimerService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 totalSeconds = intent.getIntExtra(EXTRA_TOTAL_SECONDS, 120)
-                remainingSeconds = totalSeconds
+                elapsedSeconds = 0
                 firedMilestones.clear()
                 startForeground(NOTIFICATION_ID, createNotification())
                 startCountdown()
             }
             ACTION_RESET -> {
                 if (totalSeconds > 0) {
-                    remainingSeconds = totalSeconds
+                    elapsedSeconds = 0
                     firedMilestones.clear()
                     startCountdown()
                 } else {
@@ -70,23 +70,24 @@ class RestTimerService : Service() {
 
     private fun startCountdown() {
         countdownJob?.cancel()
-                TimerManager.updateState(active = true, remainingSeconds = remainingSeconds, totalSeconds = totalSeconds)
+        TimerManager.updateState(active = true, remainingSeconds = totalSeconds - elapsedSeconds, totalSeconds = totalSeconds, elapsedSeconds = elapsedSeconds)
         WidgetUpdateHelper.updateWidgets(applicationContext)
         TileUpdateHelper.requestTileUpdate(applicationContext)
 
         countdownJob = serviceScope.launch {
-            while (remainingSeconds > 0 && isActive) {
+            fireMilestoneChimeIfNeeded() // Chime at start (elapsedSeconds=0) for BOTH/START_ONLY
+            while (elapsedSeconds < totalSeconds && isActive) {
                 delay(1000L)
-                remainingSeconds--
-                TimerManager.updateState(active = true, remainingSeconds = remainingSeconds, totalSeconds = totalSeconds)
+                elapsedSeconds++
+                TimerManager.updateState(active = true, remainingSeconds = totalSeconds - elapsedSeconds, totalSeconds = totalSeconds, elapsedSeconds = elapsedSeconds)
                 updateNotification()
                 WidgetUpdateHelper.updateWidgets(applicationContext)
                 TileUpdateHelper.requestTileUpdate(applicationContext)
                 fireMilestoneChimeIfNeeded()
             }
-            if (remainingSeconds <= 0) {
+            if (elapsedSeconds >= totalSeconds) {
                 fireMilestoneChimeIfNeeded()
-                TimerManager.updateState(active = false, remainingSeconds = 0, totalSeconds = totalSeconds)
+                TimerManager.updateState(active = false, remainingSeconds = 0, totalSeconds = totalSeconds, elapsedSeconds = elapsedSeconds)
                 WidgetUpdateHelper.updateWidgets(applicationContext)
                 TileUpdateHelper.requestTileUpdate(applicationContext)
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -104,15 +105,19 @@ class RestTimerService : Service() {
     }
 
     private fun fireMilestoneChimeIfNeeded() {
-        val elapsed = totalSeconds - remainingSeconds
         val chimeMode = runBlocking {
             PreferencesManager(this@RestTimerService).chimeMode.first()
         }
         if (chimeMode == ChimeMode.NONE) return
+        // Chime at start for BOTH and START_ONLY
+        if ((chimeMode == ChimeMode.BOTH || chimeMode == ChimeMode.START_ONLY) && elapsedSeconds == 0 && 0 !in firedMilestones) {
+            firedMilestones.add(0)
+            chime()
+        }
         if (chimeMode == ChimeMode.START_ONLY) return
 
         Milestones.values.forEach { milestone ->
-            if (elapsed >= milestone && milestone !in firedMilestones) {
+            if (elapsedSeconds >= milestone && milestone !in firedMilestones) {
                 firedMilestones.add(milestone)
                 chime()
             }
@@ -181,7 +186,7 @@ class RestTimerService : Service() {
     private fun formatTime(seconds: Int): String {
         val m = seconds / 60
         val s = seconds % 60
-        return "%d:%02d".format(m, s)
+        return "%d:%02d".format(m, s) // elapsed time
     }
 
     override fun onDestroy() {

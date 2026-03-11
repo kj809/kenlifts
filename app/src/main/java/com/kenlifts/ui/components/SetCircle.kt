@@ -18,15 +18,17 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SetCircle(
-    reps: Int,
-    completed: Boolean,
+    targetReps: Int,
+    loggedReps: Int?,
     onClick: (() -> Unit)? = null,
     weightKg: Float? = null
 ) {
-    val backgroundColor = if (completed) {
-        Color(0xFF4CAF50)
+    val filled = loggedReps != null
+    val displayReps = loggedReps ?: targetReps
+    val backgroundColor = if (filled) {
+        Color(0xFFE53935) // Red when logged (any reps)
     } else {
-        Color(0xFFE53935)
+        Color(0xFF9E9E9E) // Gray when empty
     }
     val modifier = Modifier
         .size(48.dp)
@@ -41,12 +43,21 @@ fun SetCircle(
             modifier = modifier,
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = reps.toString(),
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 18.sp
-            )
+            if (filled) {
+                Text(
+                    text = displayReps.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 18.sp
+                )
+            } else {
+                Text(
+                    text = targetReps.toString(),
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 18.sp
+                )
+            }
         }
         if (weightKg != null) {
             Text(
